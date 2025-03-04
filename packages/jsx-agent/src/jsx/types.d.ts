@@ -1,4 +1,4 @@
-import { ActionType } from "./action";
+import type { ActionType } from "./action";
 
 type JsxElementConstructor<P = any> = (
   props: P
@@ -28,14 +28,14 @@ type PromptNode =
   | Promise<AwaitedPromptNode>;
 
 export namespace PromptJSX {
-  type Node = PromptNode;
+  export type Node = PromptNode;
 
-  type Attributes = { key?: string | number | null | undefined };
-  type ElementType = string | JsxElementConstructor<any>;
-  interface Element extends PromptElement {}
-  interface IntrinsicAttributes extends Attributes {}
-  interface IntrinsicClassAttributes extends Attributes {}
-  interface IntrinsicElements {
+  export type Attributes = { key?: string | number | null | undefined };
+  export type ElementType = string | JsxElementConstructor<any>;
+  export interface Element extends PromptElement {}
+  export interface IntrinsicAttributes extends Attributes {}
+  export interface IntrinsicClassAttributes extends Attributes {}
+  export interface IntrinsicElements {
     [key: `x-${string}`]: {
       id?: string;
       children?: Node;
@@ -52,10 +52,10 @@ export namespace PromptJSX {
     };
     a: { href: string; children?: Node };
   }
-  interface ElementAttributesProperty {
+  export interface ElementAttributesProperty {
     props: {};
   }
-  interface ElementChildrenAttribute {
+  export interface ElementChildrenAttribute {
     children: {};
   }
 }

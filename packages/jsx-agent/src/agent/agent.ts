@@ -60,8 +60,6 @@ export function createAgent<TResponse>(
         generateThread({ prompt: options.prompt, generator }, currentThread)
       );
 
-      console.log("RUN", result);
-
       currentThread.messages = result.messages;
 
       await options.onStep?.(getThreadRecord(threads));

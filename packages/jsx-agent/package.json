@@ -11,8 +11,8 @@
     ".": "./dist/index.js",
     "./internal": "./dist/context/internal.js",
     "./jsx-runtime": {
-      "types": "./jsx-runtime/index.d.ts",
-      "default": "./jsx-runtime/index.js"
+      "types": "./dist/jsx/jsx-runtime.d.ts",
+      "default": "./dist/jsx/jsx-runtime.js"
     },
     "./jsx-dev-runtime": {
       "types": "./jsx-runtime/index.d.ts",
@@ -26,7 +26,6 @@
   },
   "files": [
     "dist",
-    "jsx-runtime",
     "README.md"
   ],
   "keywords": [],
