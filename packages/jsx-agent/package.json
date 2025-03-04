@@ -1,0 +1,45 @@
+{
+  "name": "jsx-agent",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrvase/jsx-agent.git",
+    "directory": "packages/jsx-agent"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./internal": "./dist/context/internal.js",
+    "./jsx-runtime": {
+      "types": "./jsx-runtime/index.d.ts",
+      "default": "./jsx-runtime/index.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./jsx-runtime/index.d.ts",
+      "default": "./jsx-runtime/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "test": "vitest",
+    "publish:beta": "npm publish --tag beta"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [],
+  "author": "Martin Vase",
+  "license": "MIT",
+  "dependencies": {
+    "@reactively/core": "0.0.8"
+  },
+  "devDependencies": {
+    "ai": "4.1.50",
+    "tsup": "8.3.6",
+    "zod": "3.24.2"
+  },
+  "peerDependencies": {
+    "zod": "^3.0.0"
+  }
+}

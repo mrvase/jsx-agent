@@ -1,0 +1,25 @@
+{
+  "name": "@jsx-agent/root",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "bun run -F './packages/*' build",
+    "release": "bun run scripts/release.ts",
+    "release:beta": "bun run scripts/prerelease.ts"
+  },
+  "keywords": [],
+  "author": "Martin Vase",
+  "license": "MIT",
+  "devDependencies": {
+    "@changesets/cli": "^2.28.1",
+    "@types/bun": "latest",
+    "tsup": "8.3.6",
+    "typescript": "5.7.3",
+    "vitest": "3.0.7",
+    "zod": "3.23.8"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
