@@ -6,7 +6,7 @@ const useStateContext = <T>(
   manualDeps: unknown[] | null = null,
   options: { crossThread?: boolean } = {}
 ) => {
-  const { threadIndex: index, thread, latest } = internal.useThreadState();
+  const { threadIndex: index, thread } = internal.useThreadState();
   const componentId = internal.useComponentId();
   const hookIndex = internal.useHookIndex();
 
@@ -68,7 +68,9 @@ export const useMemo = <T>(fn: () => T, dependencies: unknown[]): T => {
     throw new Error("Order or number of hooks has changed.");
   }
 
-  if (!arraysAreEqual(state.manualDeps, dependencies)) {
+  const isFirstRun = state.manualDeps === dependencies;
+
+  if (isFirstRun || !arraysAreEqual(state.manualDeps, dependencies)) {
     state.manualDeps = dependencies;
     state.value = fn();
   }
