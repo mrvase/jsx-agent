@@ -24,7 +24,8 @@ export const generateUserMessage = async (
   const output = await render(app, {
     thread: state.thread,
     threadIndex: state.threadIndex,
-    latest: state.latest,
+    toolCallIndex: 0,
+    latestThreadIndex: state.latestThreadIndex,
   });
 
   message.content.push(toVirtualTextMessage(output.elements));

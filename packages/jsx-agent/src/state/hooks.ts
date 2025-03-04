@@ -6,7 +6,7 @@ const useStateContext = <T>(
   manualDeps: unknown[] | null = null,
   options: { crossThread?: boolean } = {}
 ) => {
-  const { threadIndex: index, thread } = internal.useThreadState();
+  const { threadIndex, toolCallIndex, thread } = internal.useThreadState();
   const componentId = internal.useComponentId();
   const hookIndex = internal.useHookIndex();
 
@@ -17,6 +17,8 @@ const useStateContext = <T>(
   });
 
   const cache = getCache<T>(thread, componentId, hookIndex);
+
+  const index = `${threadIndex}:${toolCallIndex}` as const;
 
   return {
     state,

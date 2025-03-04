@@ -3,9 +3,11 @@ import { Reactive, reactive } from "@reactively/core";
 
 export type ComponentId = string;
 export type ThreadIndex = number;
+export type ToolCallIndex = number;
 export type HookIndex = number;
 export type ThreadName = string;
 export type Value = unknown;
+export type CacheKey = `${ThreadIndex}:${ToolCallIndex}`;
 
 type State<T = Value> =
   | { type: "manual"; value: T; manualDeps: unknown[] }
@@ -14,7 +16,7 @@ type State<T = Value> =
 type StateMap = Map<ThreadName | null, Map<ComponentId, Map<HookIndex, State>>>;
 type CacheMap = Map<
   ThreadName,
-  Map<ComponentId, Map<HookIndex, Map<ThreadIndex, Value>>>
+  Map<ComponentId, Map<HookIndex, Map<CacheKey, Value>>>
 >;
 
 const context = new AsyncLocalStorage();

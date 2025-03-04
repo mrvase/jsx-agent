@@ -36,7 +36,10 @@ export const generateToolMessage = async (
   let i = -1;
   for (const toolCall of toolCalls) {
     i++;
-    if (state.threadIndex === state.latest && i >= executedToolCallsCount) {
+    if (
+      state.threadIndex === state.latestThreadIndex &&
+      i >= executedToolCallsCount
+    ) {
       const result = execute(actions, toolCall);
 
       if (result.action !== "continue") {
@@ -54,7 +57,8 @@ export const generateToolMessage = async (
     const output = await render(prompt, {
       thread: state.thread,
       threadIndex: state.threadIndex,
-      latest: state.latest,
+      toolCallIndex: i,
+      latestThreadIndex: state.latestThreadIndex,
     });
 
     message.content.push(toVirtualToolResultMessage(output.elements, toolCall));

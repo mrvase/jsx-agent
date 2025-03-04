@@ -23,8 +23,9 @@ export async function render(
   node: PromptJSX.Element,
   state: ThreadState = {
     thread: "main",
-    latest: 0,
     threadIndex: 0,
+    toolCallIndex: 0,
+    latestThreadIndex: 0,
   }
 ): Promise<{
   elements: (string | ResolvedElement)[];

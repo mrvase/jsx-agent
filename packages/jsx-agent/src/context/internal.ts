@@ -3,7 +3,8 @@ import { createContext, useContext } from "./context";
 export type ThreadState = {
   threadIndex: number;
   readonly thread: string;
-  readonly latest: number;
+  readonly latestThreadIndex: number;
+  readonly toolCallIndex: number;
 };
 
 type ComponentId = string;

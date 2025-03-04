@@ -30,8 +30,9 @@ export async function generateThread(
   const state: ThreadState = {
     threadIndex: 0,
     thread: thread.name,
-    // "latest" represents the lowest index we have not visited yet
-    latest: nextMaxThreadIndex,
+    toolCallIndex: 0,
+    // "latestThreadIndex" represents the lowest index we have not visited yet
+    latestThreadIndex: nextMaxThreadIndex,
   };
 
   const messages: VirtualMessage[] = [];
