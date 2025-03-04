@@ -1,30 +1,40 @@
 import { ActionType } from "./action";
 
-type Context<T> = (({
-  children,
-  value,
-}: {
-  children?: PromptJSX.Node;
-  value: T;
-}) => PromptJSX.Node) & {
-  value: T;
-};
+type JsxElementConstructor<P = any> = (
+  props: P
+) => PromptNode | Promise<PromptNode>;
 
-type ContextType<T> = Context<T>;
+interface PromptElement {
+  type: string | JsxElementConstructor<any>;
+  props: Record<string, any>;
+  key: string | number | undefined;
+}
 
-type Attributes = { key?: string | number | null | undefined };
+type AwaitedPromptNode =
+  | null
+  | undefined
+  | boolean
+  | number
+  | PromptElement
+  | Iterable<PromptNode>;
+
+type PromptNode =
+  | null
+  | undefined
+  | boolean
+  | number
+  | PromptElement
+  | Iterable<PromptNode>
+  | Promise<AwaitedPromptNode>;
 
 export namespace PromptJSX {
-  interface ElementAttributesProperty {
-    props: {};
-  }
-  interface ElementChildrenAttribute {
-    children: {};
-  }
+  type Node = PromptNode;
 
+  type Attributes = { key?: string | number | null | undefined };
+  type ElementType = string | JsxElementConstructor<any>;
+  interface Element extends PromptElement {}
   interface IntrinsicAttributes extends Attributes {}
   interface IntrinsicClassAttributes extends Attributes {}
-
   interface IntrinsicElements {
     [key: `x-${string}`]: {
       id?: string;
@@ -48,25 +58,4 @@ export namespace PromptJSX {
   interface ElementChildrenAttribute {
     children: {};
   }
-
-  type Element =
-    | {
-        type: string;
-        props: Record<string, any>;
-        key: string | number | undefined;
-      }
-    | {
-        type: (props: Record<string, any>) => Node;
-        props: Record<string, any>;
-        key: string | number | undefined;
-      };
-
-  type Node =
-    | null
-    | undefined
-    | boolean
-    | number
-    | Element
-    | Iterable<Node>
-    | Promise<Node>;
 }

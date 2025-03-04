@@ -1,6 +1,6 @@
 import type { PromptJSX } from "../jsx";
 
-type ResolvedElement = Extract<PromptJSX.Element, { type: string }>;
+type ResolvedElement = Omit<PromptJSX.Element, "type"> & { type: string };
 
 type StringifyContext = {
   actionIdPath: string[];

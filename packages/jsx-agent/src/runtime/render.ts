@@ -15,7 +15,9 @@ type RenderContext = {
   actions: Record<string, ActionType>;
 };
 
-export type ResolvedElement = Extract<PromptJSX.Element, { type: string }>;
+export type ResolvedElement = Omit<PromptJSX.Element, "type"> & {
+  type: string;
+};
 
 export async function render(
   node: PromptJSX.Element,
