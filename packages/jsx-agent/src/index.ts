@@ -15,5 +15,5 @@ export { useSignal, useComputed, useState, useMemo } from "./state/hooks";
 export { createAgent } from "./agent/agent";
 export type {
   GeneratorInput,
-  AssistantResponseGenerator as ChatGenerator,
+  AssistantResponseGenerator,
 } from "./agent/generator";
