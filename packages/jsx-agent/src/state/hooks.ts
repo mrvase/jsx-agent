@@ -61,10 +61,7 @@ export const useState = <T>(
   return [value(), setter];
 };
 
-export const useMemo = <T>(
-  fn: () => T,
-  dependencies: unknown[]
-): [T, (value: T | ((state: T) => T)) => void] => {
+export const useMemo = <T>(fn: () => T, dependencies: unknown[]): T => {
   const { state, cache, index } = useStateContext(fn, dependencies);
 
   if (state.type !== "manual") {
@@ -82,10 +79,7 @@ export const useMemo = <T>(
     cache.set(index, state.value);
   }
 
-  return [
-    isLatest ? state.value : (cache.get(index) as T),
-    (value) => toFunction(value)(state.value),
-  ];
+  return isLatest ? state.value : (cache.get(index) as T);
 };
 
 const toFunction = <T>(fn: T | ((state: T) => T)): ((state: T) => T) => {
