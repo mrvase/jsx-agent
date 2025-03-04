@@ -8,8 +8,7 @@ Here's how it works:
 2. The LLM updates state through "event handlers"
 3. The next message automatically renders based on updated state
 
-> [!CAUTION]
-> JSX Agent is still in its early stages. Expect breaking changes. Contributions and feedback are welcome!
+> 🚧 **Work in Progress:** This library is still in its early stages. Expect breaking changes. Contributions and feedback are welcome!
 
 ## Getting started
 
@@ -17,7 +16,7 @@ Here's how it works:
 npm install jsx-agent
 ```
 
-We recommend installing [AI SDK](https://www.npmjs.com/package/ai) for integrating with LLMs:
+Install [AI SDK](https://www.npmjs.com/package/ai) as well for easy integration with LLMs:
 
 ```shell
 npm install ai
@@ -28,7 +27,7 @@ Next, in your `tsconfig.json`, specify the jsx import source:
 ```json
 {
   "compilerOptions": {
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "jsxImportSource": "jsx-agent"
   }
 }
@@ -46,7 +45,7 @@ import { z } from "zod";
 
 const number = 34; // The number AI has to guess
 
-export function GuessANumber() {
+export function NumberGame() {
   const [guess, setGuess] = useState<number | null>(null);
 
   const text = !guess
@@ -109,7 +108,7 @@ import { openai } from "@ai-sdk/openai";
 const agent = createAgent({
   prompt: <NumberGame />,
   model: openai("gpt-4o"),
-  limit: 20,
+  maxSteps: 20,
 });
 
 await agent.run();
@@ -143,6 +142,14 @@ async function FileContent({ path }: { path: string }) {
   );
 }
 ```
+
+These can then be consumed like ordinary JSX components (see next section).
+
+> ⚠️ **Important Note**: When a new message renders, all previous messages will re-render as well. This is intentional, as future updates will introduce options for optimizing token usage in previous messages. To ensure that the `readFile` promise remains fixed for previous messages, wrap it in useMemo like this
+>
+> ```ts
+> const content = await useMemo(() => await readFile(path), []);
+> ```
 
 ## Routing
 
