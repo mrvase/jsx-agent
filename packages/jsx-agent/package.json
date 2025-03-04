@@ -26,6 +26,7 @@
   },
   "files": [
     "dist",
+    "jsx-runtime",
     "README.md"
   ],
   "keywords": [],
