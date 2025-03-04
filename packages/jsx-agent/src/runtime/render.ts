@@ -98,7 +98,7 @@ async function resolveElement(
 
     const nextKey = [...context.componentKey, key ?? type.name];
     nextGlobalContext.set(internal.ComponentIdContext, nextKey.join("#"));
-    nextGlobalContext.set(internal.HookIndexContext, { index: 0 });
+    nextGlobalContext.set(internal.HookIndexContext, { current: 0 });
     nextGlobalContext.set(internal.ThreadStateContext, context.state);
     nextRenderContext.componentKey = nextKey;
 

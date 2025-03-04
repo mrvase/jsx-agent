@@ -9,7 +9,7 @@ import { generateToolMessage } from "./generate-tool-message";
 import { generateUserMessage } from "./generate-user-message";
 import type { AssistantResponseGenerator } from "../generator";
 import type { ActionType, PromptJSX } from "../../jsx";
-import type { ThreadState } from "../../context/internal";
+import type { ActionState, ThreadState } from "../../context/internal";
 
 export type Thread = {
   name: string;
@@ -22,7 +22,7 @@ export async function generateThread(
     generator: AssistantResponseGenerator;
   },
   thread: Thread
-) {
+): Promise<ActionState & { messages: VirtualMessage[] }> {
   const previousMaxThreadIndex =
     thread.messages.filter(isCompleteVirtualMessage).length - 1;
   const nextMaxThreadIndex = previousMaxThreadIndex + 1;
@@ -36,7 +36,6 @@ export async function generateThread(
 
   const messages: VirtualMessage[] = [];
   let toolCalls: ToolCallPart[] | null = null;
-  let terminated = false;
   let actions: Record<string, ActionType> = {};
 
   for (let index = 0; index <= nextMaxThreadIndex; index++) {
@@ -52,15 +51,10 @@ export async function generateThread(
       | CoreAssistantMessage
       | undefined;
 
-    let result:
-      | {
-          message: VirtualToolMessage | VirtualUserMessage;
-          actions: Record<string, ActionType>;
-        }
-      | {
-          message: VirtualToolMessage;
-          nextThread: string | null;
-        };
+    let result: ActionState & {
+      message: VirtualToolMessage | VirtualUserMessage;
+      actions: Record<string, ActionType>;
+    };
 
     if (toolCalls) {
       // if there is no generated response, then it comes from a thread redirect
@@ -78,16 +72,15 @@ export async function generateThread(
       result = await generateUserMessage(app.prompt, state);
     }
 
-    if ("nextThread" in result) {
-      if (result.nextThread === null) {
-        // is terminated
-        return { nextThread: thread.name, terminated: true, messages };
-      }
-      messages.push(result.message);
-      return { nextThread: result.nextThread, terminated, messages };
-    } else {
-      messages.push(result.message);
-      actions = result.actions;
+    if (result.action === "terminate") {
+      return { ...result, messages };
+    }
+
+    messages.push(result.message);
+    actions = result.actions;
+
+    if (result.action === "redirect") {
+      return { ...result, messages };
     }
 
     const response =
@@ -106,12 +99,11 @@ export async function generateThread(
         (el): el is ToolCallPart => el.type === "tool-call"
       );
     } else {
-      terminated = true;
-      break;
+      return { action: "terminate", response: undefined, messages };
     }
   }
 
-  return { nextThread: thread.name, terminated, messages };
+  return { action: "continue", messages };
 }
 
 const isToolCall = (

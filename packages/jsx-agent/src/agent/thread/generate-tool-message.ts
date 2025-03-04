@@ -4,7 +4,7 @@ import type {
   VirtualToolResultMessage,
 } from "../virtual-message";
 import type { ActionType, PromptJSX } from "../../jsx";
-import type { ThreadState } from "../../context/internal";
+import type { ActionState, ThreadState } from "../../context/internal";
 import { execute } from "../../runtime/execute";
 import { render, type ResolvedElement } from "../../runtime/render";
 
@@ -21,14 +21,10 @@ export const generateToolMessage = async (
     executedToolCallsCount: number;
   }
 ): Promise<
-  | {
-      message: VirtualToolMessage;
-      actions: Record<string, ActionType>;
-    }
-  | {
-      message: VirtualToolMessage;
-      nextThread: string | null;
-    }
+  ActionState & {
+    message: VirtualToolMessage;
+    actions: Record<string, ActionType>;
+  }
 > => {
   const message: VirtualToolMessage = {
     role: "tool",
@@ -41,17 +37,16 @@ export const generateToolMessage = async (
   for (const toolCall of toolCalls) {
     i++;
     if (state.threadIndex === state.latest && i >= executedToolCallsCount) {
-      const { nextThread, terminated } = execute(actions, toolCall);
+      const result = execute(actions, toolCall);
 
-      if (nextThread || terminated) {
-        // we return incomplete message to signal that executedToolCallsCount
-        // can be incremented
+      if (result.action !== "continue") {
         return {
-          nextThread,
+          ...result,
           message: {
             ...message,
             incomplete: true,
           },
+          actions,
         };
       }
     }
@@ -67,7 +62,7 @@ export const generateToolMessage = async (
     nextActions = output.actions;
   }
 
-  return { message, actions: nextActions };
+  return { action: "continue", message, actions: nextActions };
 };
 
 function toVirtualToolResultMessage(

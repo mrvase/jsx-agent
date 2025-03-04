@@ -4,14 +4,20 @@ export const useThread = (): [string, (value: string) => void] => {
   const state = internal.useThreadState();
   return [
     state.thread,
-    (newThread: string) => {
+    (thread: string) => {
       const actionContext = internal.useActionContext();
-      return (actionContext.nextThread = newThread);
+      return (actionContext.current = {
+        action: "redirect",
+        thread,
+      });
     },
   ];
 };
 
-export const terminate = () => {
+export const terminate = (response?: unknown) => {
   const state = internal.useActionContext();
-  state.terminated = true;
+  state.current = {
+    action: "terminate",
+    response,
+  };
 };

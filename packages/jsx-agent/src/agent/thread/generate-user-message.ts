@@ -1,5 +1,5 @@
-import type { ThreadState } from "../../context/internal";
-import type { PromptJSX } from "../../jsx";
+import type { ActionState, ThreadState } from "../../context/internal";
+import type { ActionType, PromptJSX } from "../../jsx";
 import { render, type ResolvedElement } from "../../runtime/render";
 import type {
   VirtualTextMessage,
@@ -9,7 +9,12 @@ import type {
 export const generateUserMessage = async (
   app: PromptJSX.Element,
   state: ThreadState
-) => {
+): Promise<
+  ActionState & {
+    message: VirtualUserMessage;
+    actions: Record<string, ActionType>;
+  }
+> => {
   const message: VirtualUserMessage = {
     role: "user" as const,
     content: [],
@@ -24,7 +29,11 @@ export const generateUserMessage = async (
 
   message.content.push(toVirtualTextMessage(output.elements));
 
-  return { message, actions: output.actions };
+  return {
+    action: "continue",
+    message,
+    actions: output.actions,
+  };
 };
 
 function toVirtualTextMessage(

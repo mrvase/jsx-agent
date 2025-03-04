@@ -14,31 +14,28 @@ import {
 import type { PromptJSX } from "../jsx";
 import { createStateContext, setStateContext } from "../state/state-context";
 
-const getThreadRecord = (threads: Map<string, Thread>) => {
-  return Object.fromEntries(
-    Array.from(threads.values()).map((thread) => [
-      thread.name,
-      mapMessages(thread.messages),
-    ])
-  );
+type JsxAgent<T> = {
+  run: () => Promise<T | undefined>;
 };
 
-type BaseOptions = {
+type BaseJsxAgentOptions = {
   prompt: PromptJSX.Element;
   maxSteps?: number;
   onStep?: (cb: Record<string, CoreMessage[]>) => Promise<void> | void;
 };
 
-export async function createAgent(
-  options:
-    | (BaseOptions & {
-        model: LanguageModelV1;
-        settings?: CallSettings;
-      })
-    | (BaseOptions & {
-        generator: AssistantResponseGenerator;
-      })
-) {
+type JsxAgentOptions =
+  | (BaseJsxAgentOptions & {
+      model: LanguageModelV1;
+      settings?: CallSettings;
+    })
+  | (BaseJsxAgentOptions & {
+      generator: AssistantResponseGenerator;
+    });
+
+export function createAgent<TResponse>(
+  options: JsxAgentOptions
+): JsxAgent<TResponse> {
   const generator =
     "generator" in options
       ? options.generator
@@ -59,32 +56,32 @@ export async function createAgent(
 
   const run = async () => {
     while (true) {
-      const {
-        messages,
-        nextThread: nextThreadName,
-        terminated,
-      } = await setStateContext(stateContext, () =>
+      const result = await setStateContext(stateContext, () =>
         generateThread({ prompt: options.prompt, generator }, currentThread)
       );
 
-      currentThread.messages = messages;
+      console.log("RUN", result);
 
-      if (terminated) {
-        break;
-      }
-
-      let nextThread = threads.get(nextThreadName);
-      if (!nextThread) {
-        nextThread = {
-          name: nextThreadName,
-          messages: [],
-        };
-        threads.set(nextThreadName, nextThread);
-      }
-
-      currentThread = nextThread;
+      currentThread.messages = result.messages;
 
       await options.onStep?.(getThreadRecord(threads));
+
+      if (result.action === "terminate") {
+        return result.response as TResponse | undefined;
+      }
+
+      if (result.action === "redirect") {
+        let nextThread = threads.get(result.thread);
+        if (!nextThread) {
+          nextThread = {
+            name: result.thread,
+            messages: [],
+          };
+          threads.set(result.thread, nextThread);
+        }
+
+        currentThread = nextThread;
+      }
 
       if (options.maxSteps && ++i >= options.maxSteps) {
         break;
@@ -93,4 +90,13 @@ export async function createAgent(
   };
 
   return { run };
+}
+
+function getThreadRecord(threads: Map<string, Thread>) {
+  return Object.fromEntries(
+    Array.from(threads.values()).map((thread) => [
+      thread.name,
+      mapMessages(thread.messages),
+    ])
+  );
 }

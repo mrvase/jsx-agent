@@ -1,6 +1,6 @@
 import type { ActionType } from "../jsx";
 import { createGlobalContext, setGlobalContext } from "../context/context";
-import { internal } from "../context/internal";
+import { internal, type ActionState } from "../context/internal";
 
 export function execute(
   actions: Record<string, ActionType>,
@@ -9,14 +9,13 @@ export function execute(
   const action = actions[tool.toolName];
   const context = createGlobalContext();
 
-  const actionContext = {
-    nextThread: null as string | null,
-    terminated: false,
+  const actionContext: { current: ActionState } = {
+    current: { action: "continue" },
   };
 
   context.set(internal.ActionContext, actionContext);
 
   setGlobalContext(context, () => action?.execute(tool.args));
 
-  return actionContext;
+  return actionContext.current;
 }

@@ -9,16 +9,28 @@ export type ThreadState = {
 type ComponentId = string;
 type HookIndex = number;
 
+type Mutable<T> = { current: T };
+
 // render contexts
 const ComponentIdContext = createContext<ComponentId | null>(null);
-const HookIndexContext = createContext<{ index: HookIndex } | null>(null);
+const HookIndexContext = createContext<Mutable<HookIndex> | null>(null);
 const ThreadStateContext = createContext<ThreadState | null>(null);
 
+export type ActionState =
+  | {
+      action: "continue";
+    }
+  | {
+      action: "redirect";
+      thread: string;
+    }
+  | {
+      action: "terminate";
+      response: unknown;
+    };
+
 // action contexts
-const ActionContext = createContext<{
-  nextThread: string | null;
-  terminated: boolean;
-} | null>(null);
+const ActionContext = createContext<Mutable<ActionState> | null>(null);
 
 const RENDER_ERROR_MESSAGE = "Internal context is used outside render context";
 const ACTION_ERROR_MESSAGE = "Internal context is used outside action context";
@@ -44,7 +56,7 @@ const useHookIndex = () => {
   if (!ctx) {
     throw new Error(RENDER_ERROR_MESSAGE);
   }
-  return ctx.index++;
+  return ctx.current++;
 };
 
 const useThreadState = () => {
