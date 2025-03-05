@@ -7,6 +7,7 @@ import {
   createGlobalContext,
 } from "../context/context";
 import type { ActionType, PromptJSX } from "../jsx";
+import type { JsxElementConstructor } from "../jsx/types";
 
 type RenderContext = {
   state: ThreadState;
@@ -53,52 +54,65 @@ async function resolveNode(
   node: PromptJSX.Node,
   context: RenderContext
 ): Promise<(ResolvedElement | string)[]> {
-  if (node instanceof Promise) {
-    const awaited = await (node as PromptJSX.Node);
-    return resolveNode(awaited, context);
+  return resolveNodeWithIndex(node, context);
+
+  async function resolveNodeWithIndex(
+    node: PromptJSX.Node,
+    context: RenderContext,
+    index?: number
+  ) {
+    if (node instanceof Promise) {
+      const awaited = await (node as PromptJSX.Node);
+      return resolveNodeWithIndex(awaited, context, index);
+    }
+    if (node !== null && typeof node === "object" && !("type" in node)) {
+      let promises: Promise<(ResolvedElement | string)[]>[] = [];
+      let i = 0;
+      for (let child of node) {
+        const nextIndex = (index ?? 0) * 100 + i++;
+        promises.push(resolveNodeWithIndex(child, context, nextIndex));
+      }
+      return (await Promise.all(promises)).flat(1);
+    }
+    if (typeof node === "string") {
+      return [node];
+    }
+    if (typeof node === "number") {
+      return [String(node)];
+    }
+    if (node !== null && typeof node === "object" && "type" in node) {
+      return await resolveElement(node, context, index);
+    }
+    return [];
   }
-  if (Array.isArray(node)) {
-    return (
-      await Promise.all(
-        node.map((children, index) =>
-          resolveNode(children, {
-            ...context,
-            componentKey: [...context.componentKey, String(index)],
-          })
-        )
-      )
-    ).flat(1);
-  }
-  if (typeof node === "string") {
-    return [node];
-  }
-  if (typeof node === "number") {
-    return [String(node)];
-  }
-  if (node !== null && typeof node === "object" && "type" in node) {
-    return await resolveElement(node, context);
-  }
-  return [];
 }
 
 async function resolveElement(
   node: PromptJSX.Element,
-  context: RenderContext
+  context: RenderContext,
+  index = 0
 ): Promise<(ResolvedElement | string)[]> {
   const { type, props, key } = node;
+  const nextGlobalContext = getClonedGlobalContext();
+  const nextRenderContext = { ...context };
+
+  const nextKey = [...context.componentKey, key ?? index];
 
   if (typeof type === "function") {
-    const fn = type as ((props: any) => PromptJSX.Node) | Context<any>;
-    const nextGlobalContext = getClonedGlobalContext();
-    const nextRenderContext = { ...context };
+    // ensure that different components are tracked as different state boundaries
+    nextKey.push(getElementConstructorId(type));
+  }
+
+  nextGlobalContext.set(internal.ComponentIdContext, nextKey.join("#"));
+
+  if (typeof type === "function") {
+    const fn = type as JsxElementConstructor | Context<any>;
 
     if (ContextSymbol in fn) {
       const value = props.value;
       nextGlobalContext.set(fn, value);
     }
 
-    const nextKey = [...context.componentKey, key ?? type.name];
-    nextGlobalContext.set(internal.ComponentIdContext, nextKey.join("#"));
     nextGlobalContext.set(internal.HookIndexContext, { current: 0 });
     nextGlobalContext.set(internal.ThreadStateContext, context.state);
     nextRenderContext.componentKey = nextKey;
@@ -179,4 +193,16 @@ function getActionName(path: string[], elementName: string) {
     .replace(/^_/, "")
     .replace(/_$/, "");
   return name;
+}
+
+const ElementConstructorIdMap = new WeakMap<JsxElementConstructor, string>();
+
+function getElementConstructorId(constructor: JsxElementConstructor) {
+  let id = ElementConstructorIdMap.get(constructor);
+  if (id) {
+    return id;
+  }
+  id = Math.random().toString(36).slice(2, 8);
+  ElementConstructorIdMap.set(constructor, id);
+  return id;
 }
