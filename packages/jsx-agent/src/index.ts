@@ -16,6 +16,7 @@ export {
   useState,
   useMemo,
   useInput,
+  useCache,
 } from "./state/hooks";
 
 export { createAgent } from "./agent/agent";

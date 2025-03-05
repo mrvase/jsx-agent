@@ -6,7 +6,7 @@ const useStateContext = <T>(
   manualDeps: unknown[] | null = null,
   options: { crossThread?: boolean } = {}
 ) => {
-  const { threadIndex, toolCallIndex, thread } = internal.useThreadState();
+  const { thread } = internal.useThreadState();
   const componentId = internal.useComponentId();
   const hookIndex = internal.useHookIndex();
 
@@ -16,35 +16,41 @@ const useStateContext = <T>(
     hookIndex,
   });
 
+  return state;
+};
+
+export const useCache = <T>(value: T) => {
+  const { threadIndex, toolCallIndex, thread } = internal.useThreadState();
+  const componentId = internal.useComponentId();
+  const hookIndex = internal.useHookIndex();
+
   const cache = getCache<T>(thread, componentId, hookIndex);
 
   const index = `${threadIndex}:${toolCallIndex}` as const;
 
-  return {
-    state,
-    cache,
-    index,
-  };
+  const isLatest = !cache.has(index);
+
+  if (isLatest) {
+    cache.set(index, value);
+  }
+
+  return isLatest ? value : (cache.get(index) as T);
 };
 
 export const useSignal = <T>(
   initialValue: T | (() => T),
   options: { crossThread?: boolean } = {}
 ): [() => T, (value: T | ((state: T) => T)) => void] => {
-  const { state, cache, index } = useStateContext(initialValue, null, options);
+  const state = useStateContext(initialValue, null, options);
 
   if (state.type !== "signal") {
     throw new Error("Order or number of hooks has changed.");
   }
 
-  const isLatest = !cache.has(index);
-
-  if (isLatest) {
-    cache.set(index, state.signal.value);
-  }
+  const value = useCache(state.signal.value);
 
   return [
-    () => (isLatest ? state.signal.value : (cache.get(index) as T)),
+    () => value,
     (value) => (state.signal.value = toFunction(value)(state.signal.value)),
   ];
 };
@@ -64,7 +70,7 @@ export const useState = <T>(
 };
 
 export const useMemo = <T>(fn: () => T, dependencies: unknown[]): T => {
-  const { state, cache, index } = useStateContext(fn, dependencies);
+  const state = useStateContext(fn, dependencies);
 
   if (state.type !== "manual") {
     throw new Error("Order or number of hooks has changed.");
@@ -77,13 +83,12 @@ export const useMemo = <T>(fn: () => T, dependencies: unknown[]): T => {
     state.value = fn();
   }
 
-  const isLatest = !cache.has(index);
+  return useCache(state.value);
+};
 
-  if (isLatest) {
-    cache.set(index, state.value);
-  }
-
-  return isLatest ? state.value : (cache.get(index) as T);
+export const useInput = <T = unknown>() => {
+  const value = getStateContext().input as T;
+  return useCache(value);
 };
 
 const toFunction = <T>(fn: T | ((state: T) => T)): ((state: T) => T) => {
@@ -102,8 +107,4 @@ const arraysAreEqual = (a: unknown[], b: unknown[]): boolean => {
   }
 
   return true;
-};
-
-export const useInput = <T = unknown>() => {
-  return getStateContext().input as T;
 };
