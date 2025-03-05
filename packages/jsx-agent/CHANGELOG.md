@@ -1,5 +1,12 @@
 # jsx-agent
 
+## 0.0.5
+
+### Patch Changes
+
+- b176d90: Read key from third argument in jsx function
+- 534e16a: Ensure state is scoped to owner element
+
 ## 0.0.4
 
 ### Patch Changes
