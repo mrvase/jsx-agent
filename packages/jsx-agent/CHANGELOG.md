@@ -1,5 +1,12 @@
 # jsx-agent
 
+## 0.0.6
+
+### Patch Changes
+
+- 838ade7: Add useCache hook
+- dabace3: Enable input argument and make it accessible with hook
+
 ## 0.0.5
 
 ### Patch Changes
