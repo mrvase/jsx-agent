@@ -21,23 +21,25 @@ type CacheMap = Map<
 
 const context = new AsyncLocalStorage();
 
-type SignalContext = {
+type StateContext = {
   store: StateMap;
   cache: CacheMap;
+  input: unknown;
 };
 
-export const createStateContext = (): SignalContext => {
+export const createStateContext = (): StateContext => {
   return {
     store: new Map(),
     cache: new Map(),
-  } as SignalContext;
+    input: null,
+  } as StateContext;
 };
 
-export const getStateContext = (): SignalContext => {
-  return context.getStore() as SignalContext;
+export const getStateContext = (): StateContext => {
+  return context.getStore() as StateContext;
 };
 
-export const setStateContext = <T>(value: SignalContext, func: () => T) => {
+export const setStateContext = <T>(value: StateContext, func: () => T) => {
   return context.run(value, func);
 };
 

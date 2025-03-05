@@ -1,5 +1,5 @@
 import { internal } from "../context/internal";
-import { getCache, getState } from "./state-context";
+import { getCache, getState, getStateContext } from "./state-context";
 
 const useStateContext = <T>(
   fn: T | (() => T),
@@ -102,4 +102,8 @@ const arraysAreEqual = (a: unknown[], b: unknown[]): boolean => {
   }
 
   return true;
+};
+
+export const useInput = <T = unknown>() => {
+  return getStateContext().input as T;
 };

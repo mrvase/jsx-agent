@@ -13,8 +13,14 @@ import {
 import type { ActionType, PromptJSX } from "../jsx";
 import { createStateContext, setStateContext } from "../state/state-context";
 
-type JsxAgent<T> = {
-  run: () => Promise<T | undefined>;
+type OptionalArg<T> = unknown extends T
+  ? [arg?: unknown]
+  : undefined extends T
+  ? [arg?: undefined]
+  : [arg: T];
+
+type JsxAgent<TInput = unknown, TOutput = unknown> = {
+  run: (...arg: OptionalArg<TInput>) => Promise<TOutput | undefined>;
 };
 
 type BaseJsxAgentOptions = {
@@ -38,9 +44,9 @@ type JsxAgentOptions =
       generator: AssistantResponseGenerator;
     });
 
-export function createAgent<TResponse>(
+export function createAgent<TInput = unknown, TOutput = unknown>(
   options: JsxAgentOptions
-): JsxAgent<TResponse> {
+): JsxAgent<TInput, TOutput> {
   const generator =
     "generator" in options
       ? options.generator
@@ -58,9 +64,9 @@ export function createAgent<TResponse>(
 
   let currentThread = initialThread;
   let actions: Record<string, ActionType> = {};
-  let i = 0;
+  let stepIndex = 0;
 
-  const run = async () => {
+  const run = async (input?: unknown) => {
     while (true) {
       const strategy: RenderStrategy = options.enablePromptOptimization
         ? {
@@ -72,12 +78,17 @@ export function createAgent<TResponse>(
             actions,
           };
 
-      const result = await setStateContext(stateContext, () =>
-        generateThread(
-          { prompt: options.prompt, generator },
-          currentThread,
-          strategy
-        )
+      const result = await setStateContext(
+        {
+          ...stateContext,
+          input,
+        },
+        () =>
+          generateThread(
+            { prompt: options.prompt, generator },
+            currentThread,
+            strategy
+          )
       );
 
       currentThread.messages = result.messages;
@@ -85,7 +96,7 @@ export function createAgent<TResponse>(
       await options.onStep?.(getThreadRecord(threads));
 
       if (result.action === "terminate") {
-        return result.response as TResponse | undefined;
+        return result.response as TOutput | undefined;
       }
 
       if (result.action === "redirect") {
@@ -103,7 +114,7 @@ export function createAgent<TResponse>(
 
       actions = result.actions;
 
-      if (options.maxSteps && ++i >= options.maxSteps) {
+      if (options.maxSteps && ++stepIndex >= options.maxSteps) {
         break;
       }
     }

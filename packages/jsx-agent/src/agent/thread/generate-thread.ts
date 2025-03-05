@@ -126,14 +126,10 @@ export async function generateThread(
       result = await generateUserMessage(app.prompt, state);
     }
 
-    if (result.action === "terminate") {
-      return { ...result, messages };
-    }
-
     messages.push(result.message);
     actions = result.actions;
 
-    if (result.action === "redirect") {
+    if (result.action !== "continue") {
       return { ...result, messages };
     }
 
