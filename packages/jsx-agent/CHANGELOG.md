@@ -1,5 +1,11 @@
 # jsx-agent
 
+## 0.0.4
+
+### Patch Changes
+
+- a122278: Make re-rendering of previous messages opt-in
+
 ## 0.0.3
 
 ### Patch Changes
