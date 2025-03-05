@@ -2,7 +2,8 @@ import type { PromptJSX } from "./types";
 
 export const jsx = (
   type: string | ((props: Record<string, any>) => PromptJSX.Node),
-  { key, ...props }: Record<string, any> & PromptJSX.IntrinsicAttributes = {}
+  props: Record<string, any> & PromptJSX.IntrinsicAttributes = {},
+  key?: string | number | null | undefined
 ): PromptJSX.Element => {
   return {
     type,

@@ -1,16 +1,16 @@
 import type { ActionType } from "./action";
 
-type JsxElementConstructor<P = any> = (
+export type JsxElementConstructor<P = any> = (
   props: P
-) => PromptNode | Promise<PromptNode>;
+) => PromptNode | Promise<AwaitedPromptNode>;
 
-interface PromptElement {
+export interface PromptElement {
   type: string | JsxElementConstructor<any>;
   props: Record<string, any>;
   key: string | number | undefined;
 }
 
-type AwaitedPromptNode =
+export type AwaitedPromptNode =
   | null
   | undefined
   | boolean
@@ -18,7 +18,7 @@ type AwaitedPromptNode =
   | PromptElement
   | Iterable<PromptNode>;
 
-type PromptNode =
+export type PromptNode =
   | null
   | undefined
   | boolean
