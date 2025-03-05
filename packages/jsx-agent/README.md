@@ -43,9 +43,13 @@ The AI will guess a number between 1 and 100, and we'll use state to track its a
 import { Action, SystemPrompt, terminate, useState } from "jsx-agent";
 import { z } from "zod";
 
-const number = 34; // The number AI has to guess
+type Input = {
+  number: number;
+};
 
 export function NumberGame() {
+  // the number AI has to guess is provided as input when running the agent
+  const { number } = useInput<Input>();
   const [guess, setGuess] = useState<number | null>(null);
 
   const text = !guess
@@ -72,8 +76,10 @@ export function NumberGame() {
         execute={({ number: nextGuess }) => {
           if (nextGuess === number) {
             terminate();
+            setGuess(null);
+          } else {
+            setGuess(nextGuess);
           }
-          setGuess(nextGuess);
         }}
       />
     </>
@@ -105,14 +111,17 @@ To run it, simply create an agent with `createAgent` and a model from [AI SDK](h
 import { createAgent } from "jsx-agent";
 import { openai } from "@ai-sdk/openai";
 
-const agent = createAgent({
+const agent = createAgent<Input>({
   prompt: <NumberGame />,
   model: openai("gpt-4o"),
   maxSteps: 20,
 });
 
-await agent.run();
+// the argument provided here is picked up by `useInput`
+await agent.run({ number: 34 });
 ```
+
+When the agent terminates, you can call `agent.run` again with a new number. It will continue from where it left off and render the next message using the new input from the `useInput` hook.
 
 ## Async Resources
 
@@ -190,7 +199,7 @@ async function FileSearchApp({ request }: { request: string }) {
 
 Note that the `terminate` function takes an argument. This will be the return value of `agent.run()`:
 
-```ts
+```tsx
 const agent = createAgent<string>({
   prompt: <FileSearchApp request="..." />,
   model: openai("gpt-4o"),
