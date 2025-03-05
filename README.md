@@ -145,12 +145,6 @@ async function FileContent({ path }: { path: string }) {
 
 These can then be consumed like ordinary JSX components (see next section).
 
-> ⚠️ **Important Note**: When a new message renders, all previous messages will re-render as well. This is intentional, as future updates will introduce options for optimizing token usage in previous messages. To ensure that the `readFile` promise remains fixed for previous messages, wrap it in useMemo like this
->
-> ```ts
-> const content = await useMemo(() => await readFile(path), []);
-> ```
-
 ## Routing
 
 With stateful components you can easily build an LLM interface that the LLM can navigate through to obtain a specific goal.

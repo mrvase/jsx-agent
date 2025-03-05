@@ -1,17 +1,16 @@
-import {
-  type LanguageModelV1,
-  generateText,
-  type CoreAssistantMessage,
-  type CoreMessage,
-} from "ai";
+import { type LanguageModelV1, type CoreMessage } from "ai";
 import { mapMessages } from "./thread/mappers";
-import { generateThread, type Thread } from "./thread/generate-thread";
+import {
+  generateThread,
+  type RenderStrategy,
+  type Thread,
+} from "./thread/generate-thread";
 import {
   createDefaultGenerator,
   type AssistantResponseGenerator,
   type CallSettings,
 } from "./generator";
-import type { PromptJSX } from "../jsx";
+import type { ActionType, PromptJSX } from "../jsx";
 import { createStateContext, setStateContext } from "../state/state-context";
 
 type JsxAgent<T> = {
@@ -22,6 +21,12 @@ type BaseJsxAgentOptions = {
   prompt: PromptJSX.Element;
   maxSteps?: number;
   onStep?: (cb: Record<string, CoreMessage[]>) => Promise<void> | void;
+  /**
+   * With this flag enabled, all previous messages will re-render alongside the next message.
+   * This allows for optimizing token usage in previous messages. In order to avoid unnecessary
+   * recomputations or re-fetches, use `useMemo` in your components.
+   */
+  enablePromptOptimization?: boolean;
 };
 
 type JsxAgentOptions =
@@ -52,12 +57,27 @@ export function createAgent<TResponse>(
   threads.set(initialThread.name, initialThread);
 
   let currentThread = initialThread;
+  let actions: Record<string, ActionType> = {};
   let i = 0;
 
   const run = async () => {
     while (true) {
+      const strategy: RenderStrategy = options.enablePromptOptimization
+        ? {
+            type: "mutable",
+            startIndex: 0,
+          }
+        : {
+            type: "static",
+            actions,
+          };
+
       const result = await setStateContext(stateContext, () =>
-        generateThread({ prompt: options.prompt, generator }, currentThread)
+        generateThread(
+          { prompt: options.prompt, generator },
+          currentThread,
+          strategy
+        )
       );
 
       currentThread.messages = result.messages;
@@ -80,6 +100,8 @@ export function createAgent<TResponse>(
 
         currentThread = nextThread;
       }
+
+      actions = result.actions;
 
       if (options.maxSteps && ++i >= options.maxSteps) {
         break;

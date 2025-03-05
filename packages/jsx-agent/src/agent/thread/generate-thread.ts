@@ -16,13 +16,47 @@ export type Thread = {
   messages: VirtualMessage[];
 };
 
+export type RenderStrategy =
+  | {
+      /**
+       * The mutable render strategy allows previous steps to be revisited.
+       */
+      type: "mutable";
+      /**
+       * A positive value indicates the absolute index to start from.
+       * A negative value indicates the index to start from relative to the end.
+       */
+      startIndex: number;
+    }
+  | {
+      /**
+       * The static render strategy only renders the next non-rendered message
+       */
+      type: "static";
+      actions: Record<string, ActionType>;
+    };
+
 export async function generateThread(
   app: {
     prompt: PromptJSX.Element;
     generator: AssistantResponseGenerator;
   },
-  thread: Thread
-): Promise<ActionState & { messages: VirtualMessage[] }> {
+  thread: Thread,
+  strategy: RenderStrategy
+): Promise<
+  ActionState & {
+    messages: VirtualMessage[];
+    actions: Record<string, ActionType>;
+  }
+> {
+  const getMessage = (index: number) =>
+    thread.messages[getMessageIndex(index)] as VirtualToolMessage | undefined;
+
+  const getResponse = (index: number) =>
+    thread.messages[getResponseIndex(index)] as
+      | CoreAssistantMessage
+      | undefined;
+
   const previousMaxThreadIndex =
     thread.messages.filter(isCompleteVirtualMessage).length - 1;
   const nextMaxThreadIndex = previousMaxThreadIndex + 1;
@@ -35,22 +69,41 @@ export async function generateThread(
     latestThreadIndex: nextMaxThreadIndex,
   };
 
-  const messages: VirtualMessage[] = [];
-  let toolCalls: ToolCallPart[] | null = null;
-  let actions: Record<string, ActionType> = {};
+  const absoluteStartIndex =
+    strategy.type === "mutable"
+      ? strategy.startIndex < 0
+        ? nextMaxThreadIndex + strategy.startIndex
+        : strategy.startIndex
+      : nextMaxThreadIndex;
 
-  for (let index = 0; index <= nextMaxThreadIndex; index++) {
-    state.threadIndex = index;
+  const messages: VirtualMessage[] = thread.messages.slice(
+    0,
+    // We want to get the messages up to and including the response from the previous step.
+    // So we get its index + 1 because slice is exclusive of the end index.
+    getResponseIndex(absoluteStartIndex - 1) + 1
+  );
 
-    const messageIndex = index * 2;
-    const responseIndex = 1 + index * 2;
+  let actions: Record<string, ActionType> =
+    strategy.type === "static" ? strategy.actions : {};
 
-    const existingMessage = thread.messages[messageIndex] as
-      | VirtualToolMessage
-      | undefined;
-    const existingResponse = thread.messages[responseIndex] as
-      | CoreAssistantMessage
-      | undefined;
+  for (
+    let stepIndex = absoluteStartIndex;
+    stepIndex <= nextMaxThreadIndex;
+    stepIndex++
+  ) {
+    state.threadIndex = stepIndex;
+
+    const previousResponse = getResponse(stepIndex - 1);
+
+    const toolCalls =
+      previousResponse && isToolCall(previousResponse)
+        ? previousResponse.content.filter(
+            (el): el is ToolCallPart => el.type === "tool-call"
+          )
+        : null;
+
+    const existingMessage = getMessage(stepIndex);
+    const existingResponse = getResponse(stepIndex);
 
     let result: ActionState & {
       message: VirtualToolMessage | VirtualUserMessage;
@@ -95,17 +148,16 @@ export async function generateThread(
 
     messages.push(response);
 
-    if (isToolCall(response)) {
-      toolCalls = response.content.filter(
-        (el): el is ToolCallPart => el.type === "tool-call"
-      );
-    } else {
-      return { action: "terminate", response: undefined, messages };
+    if (!isToolCall(response)) {
+      return { action: "terminate", response: undefined, messages, actions };
     }
   }
 
-  return { action: "continue", messages };
+  return { action: "continue", messages, actions };
 }
+
+const getMessageIndex = (index: number) => index * 2;
+const getResponseIndex = (index: number) => 1 + index * 2;
 
 const isToolCall = (
   message: CoreAssistantMessage
