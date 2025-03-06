@@ -1,5 +1,12 @@
 # jsx-agent
 
+## 0.0.7
+
+### Patch Changes
+
+- 8e5f4b5: Improve component state management to ensure that state is scoped to the lifetime of a specific component instance
+- 8e5f4b5: Improve rendering of nested lists
+
 ## 0.0.6
 
 ### Patch Changes
