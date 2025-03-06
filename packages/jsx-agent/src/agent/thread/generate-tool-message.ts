@@ -41,23 +41,16 @@ export const generateToolMessage = async (
   let reference: RenderReference | undefined = references[0];
 
   let i = -1;
-  console.log("START TOOL CALLING", {
-    executedToolCallsCount,
-    references: references.map((el) => el.mode),
-  });
+
   for (const toolCall of toolCalls) {
     i++;
     if (
       // state.threadIndex === state.latestThreadIndex &&
       i >= executedToolCallsCount
     ) {
-      console.log("execute", toolCall);
       const result = execute(actions, toolCall);
 
-      console.log("execute reusult", result);
-
       if (result.action !== "continue") {
-        console.log("PREMATURE EXIT");
         return {
           ...result,
           message: {
@@ -69,7 +62,6 @@ export const generateToolMessage = async (
       }
     }
 
-    console.log("render from tool call", toolCall.toolCallId);
     const output = await render(
       prompt,
       {
@@ -87,7 +79,6 @@ export const generateToolMessage = async (
     nextActions = output.actions;
   }
 
-  console.log("ORDINARY EXIT");
   return { action: "continue", message, actions: nextActions };
 };
 
