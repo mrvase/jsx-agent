@@ -8,4 +8,5 @@ await build({
   external: [],
   format: "esm",
   dts: true,
+  skipNodeModulesBundle: true,
 });
