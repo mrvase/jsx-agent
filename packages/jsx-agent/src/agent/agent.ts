@@ -10,8 +10,12 @@ import {
   type AssistantResponseGenerator,
   type CallSettings,
 } from "./generator";
-import type { ActionType, PromptJSX } from "../jsx";
-import { createStateContext, setStateContext } from "../state/state-context";
+import type { PromptJSX } from "../jsx";
+import {
+  createRunningContext,
+  setRunningContext,
+} from "../context/running-context";
+import type { VirtualMessage } from "./virtual-message";
 
 type OptionalArg<T> = unknown extends T
   ? [arg?: unknown]
@@ -26,7 +30,10 @@ type JsxAgent<TInput = unknown, TOutput = unknown> = {
 type BaseJsxAgentOptions = {
   prompt: PromptJSX.Element;
   maxSteps?: number;
-  onStep?: (cb: Record<string, CoreMessage[]>) => Promise<void> | void;
+  onStep?: (
+    record1: Record<string, CoreMessage[]>,
+    record2: Record<string, VirtualMessage[]>
+  ) => Promise<void> | void;
   /**
    * With this flag enabled, all previous messages will re-render alongside the next message.
    * This allows for optimizing token usage in previous messages. In order to avoid unnecessary
@@ -52,18 +59,18 @@ export function createAgent<TInput = unknown, TOutput = unknown>(
       ? options.generator
       : createDefaultGenerator(options);
 
-  const stateContext = createStateContext();
+  const stateContext = createRunningContext();
 
   const initialThread: Thread = {
     name: "main",
     messages: [],
+    actions: {},
   };
 
   const threads = new Map<string, Thread>();
   threads.set(initialThread.name, initialThread);
 
   let currentThread = initialThread;
-  let actions: Record<string, ActionType> = {};
   let stepIndex = 0;
 
   const run = async (input?: unknown) => {
@@ -75,10 +82,10 @@ export function createAgent<TInput = unknown, TOutput = unknown>(
           }
         : {
             type: "static",
-            actions,
+            actions: currentThread.actions,
           };
 
-      const result = await setStateContext(
+      const result = await setRunningContext(
         {
           ...stateContext,
           input,
@@ -92,8 +99,12 @@ export function createAgent<TInput = unknown, TOutput = unknown>(
       );
 
       currentThread.messages = result.messages;
+      currentThread.actions = result.actions;
 
-      await options.onStep?.(getThreadRecord(threads));
+      await options.onStep?.(
+        getThreadRecord(threads),
+        getThreadVirtualRecord(threads)
+      );
 
       if (result.action === "terminate") {
         return result.response as TOutput | undefined;
@@ -105,14 +116,13 @@ export function createAgent<TInput = unknown, TOutput = unknown>(
           nextThread = {
             name: result.thread,
             messages: [],
+            actions: {},
           };
           threads.set(result.thread, nextThread);
         }
 
         currentThread = nextThread;
       }
-
-      actions = result.actions;
 
       if (options.maxSteps && ++stepIndex >= options.maxSteps) {
         break;
@@ -129,5 +139,11 @@ function getThreadRecord(threads: Map<string, Thread>) {
       thread.name,
       mapMessages(thread.messages),
     ])
+  );
+}
+
+function getThreadVirtualRecord(threads: Map<string, Thread>) {
+  return Object.fromEntries(
+    Array.from(threads.values()).map((thread) => [thread.name, thread.messages])
   );
 }

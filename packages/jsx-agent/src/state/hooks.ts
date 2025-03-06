@@ -1,53 +1,52 @@
-import { internal } from "../context/internal";
-import { getCache, getState, getStateContext } from "./state-context";
+import { reactive } from "@reactively/core";
+import { internal, type State } from "../context/internal";
+import { getRunningContext } from "../context/running-context";
 
 const useStateContext = <T>(
+  hookIndex: number,
   fn: T | (() => T),
-  manualDeps: unknown[] | null = null,
-  options: { crossThread?: boolean } = {}
+  manualDeps: unknown[] | null = null
 ) => {
-  const { thread } = internal.useThreadState();
-  const componentId = internal.useComponentId();
-  const hookIndex = internal.useHookIndex();
+  const comp = internal.useComponentState();
 
-  const state = getState<T>(fn, manualDeps, {
-    threadName: options.crossThread ? null : thread,
-    componentId,
-    hookIndex,
-  });
+  let state = comp.state[hookIndex] as State<T>;
+  if (!state) {
+    state = manualDeps
+      ? { type: "manual", value: toFunction(fn)(undefined), manualDeps }
+      : {
+          type: "signal",
+          signal: reactive<T>(fn),
+        };
+    comp.state[hookIndex] = state as State<unknown>;
+  }
 
   return state;
 };
 
-export const useCache = <T>(value: T) => {
-  const { threadIndex, toolCallIndex, thread } = internal.useThreadState();
-  const componentId = internal.useComponentId();
-  const hookIndex = internal.useHookIndex();
+export const useCacheContext = <T>(hookIndex: number, value: T) => {
+  const comp = internal.useComponentState();
 
-  const cache = getCache<T>(thread, componentId, hookIndex);
+  let cache = comp.cached[hookIndex] as T;
 
-  const index = `${threadIndex}:${toolCallIndex}` as const;
-
-  const isLatest = !cache.has(index);
-
-  if (isLatest) {
-    cache.set(index, value);
+  if (!(hookIndex in comp.cached)) {
+    cache = value;
+    comp.cached[hookIndex] = cache;
   }
 
-  return isLatest ? value : (cache.get(index) as T);
+  return cache;
 };
 
 export const useSignal = <T>(
-  initialValue: T | (() => T),
-  options: { crossThread?: boolean } = {}
+  initialValue: T | (() => T)
 ): [() => T, (value: T | ((state: T) => T)) => void] => {
-  const state = useStateContext(initialValue, null, options);
+  const hookIndex = internal.useHookIndex();
+  const state = useStateContext(hookIndex, initialValue, null);
 
   if (state.type !== "signal") {
     throw new Error("Order or number of hooks has changed.");
   }
 
-  const value = useCache(state.signal.value);
+  const value = useCacheContext(hookIndex, state.signal.value);
 
   return [
     () => value,
@@ -55,11 +54,8 @@ export const useSignal = <T>(
   ];
 };
 
-export const useComputed = <T>(
-  fn: () => T,
-  options: { crossThread?: boolean } = {}
-): (() => T) => {
-  return useSignal(fn, options)[0];
+export const useComputed = <T>(fn: () => T): (() => T) => {
+  return useSignal(fn)[0];
 };
 
 export const useState = <T>(
@@ -70,29 +66,29 @@ export const useState = <T>(
 };
 
 export const useMemo = <T>(fn: () => T, dependencies: unknown[]): T => {
-  const state = useStateContext(fn, dependencies);
+  const hookIndex = internal.useHookIndex();
+  const state = useStateContext(hookIndex, fn, dependencies);
 
   if (state.type !== "manual") {
     throw new Error("Order or number of hooks has changed.");
   }
 
-  const isFirstRun = state.manualDeps === dependencies;
-
-  if (isFirstRun || !arraysAreEqual(state.manualDeps, dependencies)) {
+  if (!arraysAreEqual(state.manualDeps, dependencies)) {
     state.manualDeps = dependencies;
     state.value = fn();
   }
 
-  return useCache(state.value);
+  return useCacheContext(hookIndex, state.value);
 };
 
 export const useInput = <T = unknown>() => {
-  const value = getStateContext().input as T;
-  return useCache(value);
+  const hookIndex = internal.useHookIndex();
+  const value = getRunningContext().input as T;
+  return useCacheContext(hookIndex, value);
 };
 
-const toFunction = <T>(fn: T | ((state: T) => T)): ((state: T) => T) => {
-  return typeof fn === "function" ? (fn as (state: T) => T) : () => fn;
+const toFunction = <T, U>(fn: T | ((state: U) => T)): ((state: U) => T) => {
+  return typeof fn === "function" ? (fn as (state: U) => T) : () => fn;
 };
 
 const arraysAreEqual = (a: unknown[], b: unknown[]): boolean => {

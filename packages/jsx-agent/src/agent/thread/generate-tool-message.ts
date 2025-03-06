@@ -6,7 +6,11 @@ import type {
 import type { ActionType, PromptJSX } from "../../jsx";
 import type { ActionState, ThreadState } from "../../context/internal";
 import { execute } from "../../runtime/execute";
-import { render, type ResolvedElement } from "../../runtime/render";
+import {
+  render,
+  type RenderReference,
+  type ResolvedElement,
+} from "../../runtime/render";
 
 export const generateToolMessage = async (
   prompt: PromptJSX.Element,
@@ -19,7 +23,8 @@ export const generateToolMessage = async (
     toolCalls: ToolCallPart[];
     actions: Record<string, ActionType>;
     executedToolCallsCount: number;
-  }
+  },
+  references: RenderReference[]
 ): Promise<
   ActionState & {
     message: VirtualToolMessage;
@@ -33,16 +38,26 @@ export const generateToolMessage = async (
   };
   let nextActions: Record<string, ActionType> = {};
 
+  let reference: RenderReference | undefined = references[0];
+
   let i = -1;
+  console.log("START TOOL CALLING", {
+    executedToolCallsCount,
+    references: references.map((el) => el.mode),
+  });
   for (const toolCall of toolCalls) {
     i++;
     if (
-      state.threadIndex === state.latestThreadIndex &&
+      // state.threadIndex === state.latestThreadIndex &&
       i >= executedToolCallsCount
     ) {
+      console.log("execute", toolCall);
       const result = execute(actions, toolCall);
 
+      console.log("execute reusult", result);
+
       if (result.action !== "continue") {
+        console.log("PREMATURE EXIT");
         return {
           ...result,
           message: {
@@ -54,23 +69,30 @@ export const generateToolMessage = async (
       }
     }
 
-    const output = await render(prompt, {
-      thread: state.thread,
-      threadIndex: state.threadIndex,
-      toolCallIndex: i,
-      latestThreadIndex: state.latestThreadIndex,
-    });
+    console.log("render from tool call", toolCall.toolCallId);
+    const output = await render(
+      prompt,
+      {
+        thread: state.thread,
+        threadIndex: state.threadIndex,
+        toolCallIndex: i,
+      },
+      reference
+    );
 
-    message.content.push(toVirtualToolResultMessage(output.elements, toolCall));
+    reference = references[i + 1] ?? { mode: "next", element: output.element };
+
+    message.content.push(toVirtualToolResultMessage(output.element, toolCall));
 
     nextActions = output.actions;
   }
 
+  console.log("ORDINARY EXIT");
   return { action: "continue", message, actions: nextActions };
 };
 
 function toVirtualToolResultMessage(
-  result: (string | ResolvedElement)[],
+  result: ResolvedElement,
   tool: {
     toolCallId: string;
     toolName: string;

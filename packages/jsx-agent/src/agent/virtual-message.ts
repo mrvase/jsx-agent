@@ -3,14 +3,14 @@ import type { ResolvedElement } from "../runtime/render";
 
 export type VirtualTextMessage = {
   type: "text";
-  text: (string | ResolvedElement)[];
+  text: ResolvedElement;
 };
 
 export type VirtualToolResultMessage = {
   type: "tool-result";
   toolCallId: string;
   toolName: string;
-  result: (string | ResolvedElement)[];
+  result: ResolvedElement;
 };
 
 export type VirtualUserMessage = {

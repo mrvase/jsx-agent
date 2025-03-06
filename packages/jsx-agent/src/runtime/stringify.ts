@@ -1,59 +1,195 @@
-import type { PromptJSX } from "../jsx";
-
-type ResolvedElement = Omit<PromptJSX.Element, "type"> & { type: string };
+import type {
+  ResolvedElement,
+  ResolvedFunctionElement,
+  ResolvedIntrinsicElement,
+  ResolvedNode,
+} from "./render";
 
 type StringifyContext = {
   actionIdPath: string[];
-  system: string[];
-  actions: string[];
+  system: StringOutput[];
 };
 
-export function stringify(value: (string | ResolvedElement)[]) {
-  const system: string[] = [];
-  const actions: string[] = [];
+type StringOutput =
+  | {
+      type: "inline" | "block" | "block-left" | "block-right";
+      value: string;
+    }
+  | {
+      type: null;
+    };
 
-  const result = stringifyArrayWithBlockJoin(value, {
+export function stringify(value: ResolvedElement) {
+  const system: StringOutput[] = [];
+
+  const result = stringifyElement(value, {
     actionIdPath: [],
     system,
-    actions,
   });
 
   return {
-    prompt: result,
-    system: join(system, "\n\n"),
-    actions,
+    prompt: result.type === null ? "" : result.value,
+    system: join(system, 2),
   };
 }
 
-function join(strings: string[], separator: string = ""): string {
-  return strings
-    .filter((el) => typeof el === "number" || Boolean(el))
-    .join(separator);
+function joinBlocks(
+  value: { type: "block"; value: string }[],
+  gap: number = 2
+) {
+  return value.map((el) => el.value).join("\n".repeat(gap));
+}
+
+function join(value: StringOutput[], gap: number = 2) {
+  return joinBlocks(getBlocks(value), gap);
+}
+
+/**
+ * This function merges strings into one string where information about
+ * the "openness" of its edges is kept.
+ */
+function reduce(
+  value: StringOutput[],
+  gap: number = 2
+): Exclude<StringOutput, { type: null }> {
+  let string = ``;
+
+  let isBlockLeft = false;
+  let isBlockRight = false;
+
+  let previousIsBlock = false;
+  let i = 0;
+
+  const separator = "\n".repeat(gap);
+
+  for (let el of value) {
+    if (el.type === null) {
+      continue;
+    }
+
+    if (i === 0) {
+      string += separator;
+      isBlockLeft = el.type === "block" || el.type === "block-left";
+      previousIsBlock = el.type === "block" || el.type === "block-right";
+    } else if (
+      el.type === "block" ||
+      el.type === "block-left" ||
+      previousIsBlock
+    ) {
+      string += separator;
+    }
+
+    string += el.value;
+    previousIsBlock = el.type === "block" || el.type === "block-right";
+    i++;
+  }
+  isBlockRight = previousIsBlock;
+
+  return {
+    type:
+      isBlockLeft && isBlockRight
+        ? "block"
+        : isBlockLeft
+        ? "block-left"
+        : isBlockRight
+        ? "block-right"
+        : "inline",
+    value: string.trim(),
+  };
+}
+
+/**
+ * This function merges strings into blocks. It is only intended to be used within a block
+ * since information about the "openness" of the edges is lost.
+ */
+function getBlocks(value: StringOutput[]) {
+  const blocks: {
+    type: "block";
+    value: string;
+  }[] = [
+    {
+      type: "block",
+      value: "",
+    },
+  ];
+
+  let previousIsBlock = false;
+  let i = 0;
+
+  for (let el of value) {
+    if (el.type === null) {
+      continue;
+    }
+
+    if (
+      i !== 0 &&
+      (el.type === "block" || el.type === "block-left" || previousIsBlock)
+    ) {
+      blocks.push({
+        type: "block",
+        value: "",
+      });
+    }
+
+    blocks[blocks.length - 1].value += el.value;
+    previousIsBlock = el.type === "block" || el.type === "block-right";
+    i++;
+  }
+
+  return blocks;
+}
+
+function stringifyNodeOutput(
+  value: ResolvedNode,
+  context: StringifyContext
+): StringOutput[] {
+  if (Array.isArray(value)) {
+    let strings: StringOutput[] = [];
+    for (let node of value) {
+      strings.push(...stringifyNodeOutput(node, context));
+    }
+    return strings;
+  }
+  if (typeof value === "object") {
+    return [stringifyElement(value, context)];
+  }
+  return [{ type: "inline", value }];
 }
 
 function stringifyElement(
-  value: ResolvedElement,
+  node_: ResolvedElement,
   context: StringifyContext
-): string[] {
-  const { type, props } = value;
+): StringOutput {
+  if (typeof node_.type === "function") {
+    const node = node_ as ResolvedFunctionElement;
+    return reduce(stringifyNodeOutput(node._resolved, context));
+  }
+  const node = node_ as ResolvedIntrinsicElement;
 
-  if (type === "system") {
-    context.system.push(...stringifyArray(props.children, context));
-    return [];
+  if (node.type === "system") {
+    context.system.push(...stringifyNodeOutput(node._resolved, context));
+    return {
+      type: null,
+    };
   }
 
-  if (type === "a") {
-    return [
-      `[${props.href}](${join(stringifyArray(props.children, context))})`,
-    ];
+  if (node.type === "a") {
+    const children = stringifyNodeOutput(node._resolved, context);
+    return {
+      type: "inline",
+      value: `[${node._props.href}](${join(children, 0)})`,
+    };
   }
 
-  if (type === "br") {
-    return [`\n`];
+  if (node.type === "br") {
+    return {
+      type: "inline",
+      value: `\n`,
+    };
   }
 
-  if (type.startsWith("x-")) {
-    const { children, tag, ...rest } = props;
+  if (node.type.startsWith("x-")) {
+    const { children: _, tag, ...rest } = node._props;
 
     let attributes = [];
     for (let [key, value] of Object.entries(rest)) {
@@ -65,7 +201,7 @@ function stringifyElement(
       }
     }
 
-    const tagName = tag ?? type.slice(2);
+    const tagName = tag ?? node.type.slice(2);
 
     const tagify = (el?: string) =>
       `<${[tagName, ...attributes].join(" ")}>${
@@ -74,100 +210,105 @@ function stringifyElement(
 
     const nextPath = [
       ...context.actionIdPath,
-      [tagName, props.id].filter(Boolean).join("#"),
+      [tagName, node._props.id].filter(Boolean).join("#"),
     ];
 
-    const normalizedChildren = stringifyArrayWithBlockJoin(children, {
+    const children = stringifyNodeOutput(node._resolved, {
       ...context,
       actionIdPath: nextPath,
     });
 
-    return [tagify(normalizedChildren)];
+    return {
+      type: "block",
+      value: tagify(join(children)),
+    };
   }
 
-  if (type === "p" || type === "li") {
-    return [join(stringifyArray(props.children, context))];
+  if (node.type === "p" || node.type === "li") {
+    const children = stringifyNodeOutput(node._resolved, context);
+
+    return {
+      type: "block",
+      value: join(children, 2),
+    };
   }
 
-  if (type === "ul") {
-    const children = stringifyArray(props.children, context);
-    return [
-      children
-        .map((el: string) => (el.match(/^\s*\-\s/) ? `  ${el}` : `- ${el}`))
-        .join("\n"),
-    ];
+  if (node.type === "ul") {
+    const children = stringifyNodeOutput(node._resolved, context);
+    const blocks = getBlocks(children);
+
+    return {
+      type: "block",
+      value: joinBlocks(
+        blocks.map((el, index) => {
+          return stringifyListElement(el, { string: "-", pattern: "-" });
+        }),
+        1
+      ),
+    };
   }
 
-  if (type === "ol") {
-    const children = stringifyArray(props.children, context);
-    return [
-      children
-        .map((el: string, index: number) => `${index + 1}. ${el}`)
-        .join("\n"),
-    ];
+  if (node.type === "ol") {
+    const children = stringifyNodeOutput(node._resolved, context);
+    const blocks = getBlocks(children);
+
+    return {
+      type: "block",
+      value: joinBlocks(
+        blocks.map((el, index) => {
+          return stringifyListElement(el, {
+            string: `${index + 1}.`,
+            pattern: "\\d+\\.",
+          });
+        }),
+        1
+      ),
+    };
   }
 
-  if (type === "div") {
-    return [
-      stringifyArrayWithBlockJoin(props.children, context, props.gap || 2),
-    ];
+  if (node.type === "div") {
+    const children = stringifyNodeOutput(node._resolved, context);
+
+    const gap = node._props.gap || 2;
+    return {
+      type: "block",
+      value: join(children, gap),
+    };
   }
 
-  if (type === "action") {
-    context.actions.push(props.action.name);
-    if (props.render !== true) {
-      return [];
+  if (node.type === "action") {
+    if (node._props.render !== true) {
+      return {
+        type: null,
+      };
     }
-    return [
-      `<related-action name="${props.action.name}">\n${props.action.description}\n</related-action>`,
-    ];
+    return {
+      type: "block",
+      value: `<related-action name="${node._props.action.name}">\n${node._props.action.description}\n</related-action>`,
+    };
   }
 
   throw new Error("Unknown type");
 }
 
-function stringifyArray(
-  value: (string | ResolvedElement)[],
-  context: StringifyContext
-): string[] {
-  return value
-    .map((el) => (typeof el === "string" ? el : stringifyElement(el, context)))
-    .flat(1);
-}
-
-const blockElements = ["p", "li"];
-
-const isBlockElement = (el: ResolvedElement) =>
-  blockElements.includes(el.type) || el.type.startsWith("x-");
-
-function stringifyArrayWithBlockJoin(
-  value: (string | ResolvedElement)[],
-  context: StringifyContext,
-  gap: number = 2
-): string {
-  let string = ``;
-
-  let previousIsBlock = false;
-  let i = 0;
-
-  const separator = "\n".repeat(gap);
-
-  for (let el of value) {
-    if (typeof el === "string") {
-      string += previousIsBlock ? separator : "";
-      string += el;
-
-      previousIsBlock = false;
-    } else {
-      const elementIsBlock: boolean = isBlockElement(el);
-
-      string += (previousIsBlock || elementIsBlock) && i > 0 ? separator : "";
-      string += stringifyElement(el, context);
-
-      previousIsBlock = elementIsBlock;
-    }
-    i++;
+function stringifyListElement(
+  el: { type: "block"; value: string },
+  bullet: {
+    string: string;
+    pattern: string;
   }
-
-  return string;
+) {
+  let value = el.value;
+  const startsWithChildren = value.match(new RegExp(`^${bullet.pattern} `));
+  if (startsWithChildren) {
+    value = `${bullet.string} \n` + value;
+  } else {
+    value = `${bullet.string} ` + value;
+  }
+  return {
+    type: "block" as const,
+    value: value
+      .replace(new RegExp(`\n+(${bullet.pattern}) `, "g"), `\n$1 `) // make sure a nested list is adjacent to preceding block
+      .replace(new RegExp("(\n*)\n", "g"), "$1\n    "), // make sure that nested blocks remains indented
+  };
 }

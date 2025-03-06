@@ -1,5 +1,8 @@
 import type { ActionType } from "../jsx";
-import { createGlobalContext, setGlobalContext } from "../context/context";
+import {
+  createComponentContext,
+  setComponentContext,
+} from "../context/component-context";
 import { internal, type ActionState } from "../context/internal";
 
 export function execute(
@@ -7,7 +10,12 @@ export function execute(
   tool: { toolName: string; args: unknown }
 ) {
   const action = actions[tool.toolName];
-  const context = createGlobalContext();
+
+  if (!action) {
+    throw new Error(`Action ${tool.toolName} not found`);
+  }
+
+  const context = createComponentContext();
 
   const actionContext: { current: ActionState } = {
     current: { action: "continue" },
@@ -15,7 +23,7 @@ export function execute(
 
   context.set(internal.ActionContext, actionContext);
 
-  setGlobalContext(context, () => action?.execute(tool.args));
+  setComponentContext(context, () => action?.execute(tool.args));
 
   return actionContext.current;
 }

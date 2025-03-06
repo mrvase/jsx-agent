@@ -1,4 +1,5 @@
 import { internal } from "./context/internal";
+import { useCacheContext } from "./state/hooks";
 
 export const useThread = (): [string, (value: string) => void] => {
   const state = internal.useThreadState();
@@ -12,6 +13,11 @@ export const useThread = (): [string, (value: string) => void] => {
       });
     },
   ];
+};
+
+export const useCache = <T>(value: T): T => {
+  const hookIndex = internal.useHookIndex();
+  return useCacheContext(hookIndex, value);
 };
 
 export const terminate = (response?: unknown) => {

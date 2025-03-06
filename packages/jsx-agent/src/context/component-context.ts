@@ -43,22 +43,22 @@ type ContextMap = Omit<
 
 const context = new AsyncLocalStorage();
 
-export const createGlobalContext = (): ContextMap => {
+export const createComponentContext = (): ContextMap => {
   return new Map() as ContextMap;
 };
 
-export const getGlobalContext = (): ContextMap => {
+export const getComponentContext = (): ContextMap => {
   return context.getStore() as ContextMap;
 };
 
-export const getClonedGlobalContext = (): ContextMap => {
-  return new Map(getGlobalContext()) as ContextMap;
+export const getClonedComponentContext = (): ContextMap => {
+  return new Map(getComponentContext()) as ContextMap;
 };
 
-export const setGlobalContext = <T>(value: ContextMap, func: () => T) => {
+export const setComponentContext = <T>(value: ContextMap, func: () => T) => {
   return context.run(value, func);
 };
 
 export function useContext<T>(ctx: ContextInstance<T>) {
-  return (getGlobalContext()?.get(ctx) as T | undefined) ?? ctx.value;
+  return (getComponentContext()?.get(ctx) as T | undefined) ?? ctx.value;
 }

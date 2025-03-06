@@ -1,6 +1,10 @@
 import type { ActionState, ThreadState } from "../../context/internal";
 import type { ActionType, PromptJSX } from "../../jsx";
-import { render, type ResolvedElement } from "../../runtime/render";
+import {
+  render,
+  type RenderReference,
+  type ResolvedElement,
+} from "../../runtime/render";
 import type {
   VirtualTextMessage,
   VirtualUserMessage,
@@ -8,7 +12,8 @@ import type {
 
 export const generateUserMessage = async (
   app: PromptJSX.Element,
-  state: ThreadState
+  state: ThreadState,
+  references: RenderReference[]
 ): Promise<
   ActionState & {
     message: VirtualUserMessage;
@@ -21,14 +26,19 @@ export const generateUserMessage = async (
     virtual: true,
   };
 
-  const output = await render(app, {
-    thread: state.thread,
-    threadIndex: state.threadIndex,
-    toolCallIndex: 0,
-    latestThreadIndex: state.latestThreadIndex,
-  });
+  const reference: RenderReference | undefined = references[0];
 
-  message.content.push(toVirtualTextMessage(output.elements));
+  const output = await render(
+    app,
+    {
+      thread: state.thread,
+      threadIndex: state.threadIndex,
+      toolCallIndex: 0,
+    },
+    reference
+  );
+
+  message.content.push(toVirtualTextMessage(output.element));
 
   return {
     action: "continue",
@@ -37,9 +47,7 @@ export const generateUserMessage = async (
   };
 };
 
-function toVirtualTextMessage(
-  result: (string | ResolvedElement)[]
-): VirtualTextMessage {
+function toVirtualTextMessage(result: ResolvedElement): VirtualTextMessage {
   return {
     type: "text",
     text: result,

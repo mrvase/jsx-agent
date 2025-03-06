@@ -1,9 +1,9 @@
-import type { z } from "zod";
+import type { z, ZodTypeAny } from "zod";
 
-export type ActionType<TConfig extends z.ZodTypeAny = any> = {
+export type ActionType<TConfig extends ZodTypeAny = any> = {
   name: string;
-  parameters: NoInfer<TConfig>;
+  parameters: TConfig;
   description: string;
-  execute: (params: z.infer<TConfig>) => unknown;
+  execute: (params: TConfig["_output"]) => unknown;
   permanent?: boolean;
 };

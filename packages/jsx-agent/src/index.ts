@@ -4,19 +4,21 @@ export { stringify } from "./runtime/stringify";
 
 export { Fragment, type PromptJSX, type ActionType } from "./jsx";
 
-export { createContext, useContext } from "./context/context";
+export { createContext, useContext } from "./context/component-context";
+export {
+  createRunningContext,
+  setRunningContext,
+} from "./context/running-context";
 
 export { SystemPrompt, Action } from "./elements";
-export { useThread, terminate } from "./hooks";
+export { useThread, useCache, terminate } from "./hooks";
 
-export { createStateContext, setStateContext } from "./state/state-context";
 export {
   useSignal,
   useComputed,
   useState,
   useMemo,
   useInput,
-  useCache,
 } from "./state/hooks";
 
 export { createAgent } from "./agent/agent";

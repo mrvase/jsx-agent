@@ -1,20 +1,26 @@
-import { createContext, useContext } from "./context";
+import type { Reactive } from "@reactively/core";
+import { createContext, useContext } from "./component-context";
 
 export type ThreadState = {
-  threadIndex: number;
   readonly thread: string;
-  readonly latestThreadIndex: number;
-  readonly toolCallIndex: number;
+  threadIndex: number;
+  toolCallIndex: number;
 };
 
-type ComponentId = string;
-type HookIndex = number;
+export type State<T = unknown> =
+  | { type: "manual"; value: T; manualDeps: unknown[] }
+  | { type: "signal"; signal: Reactive<T> };
+
+export type ComponentState = {
+  state: State<unknown>[];
+  cached: unknown[];
+};
 
 type Mutable<T> = { current: T };
 
 // render contexts
-const ComponentIdContext = createContext<ComponentId | null>(null);
-const HookIndexContext = createContext<Mutable<HookIndex> | null>(null);
+const HookIndexContext = createContext<Mutable<number> | null>(null);
+const ComponentStateContext = createContext<ComponentState | null>(null);
 const ThreadStateContext = createContext<ThreadState | null>(null);
 
 export type ActionState =
@@ -44,20 +50,20 @@ const useActionContext = () => {
   return ctx;
 };
 
-const useComponentId = () => {
-  const ctx = useContext(ComponentIdContext);
-  if (!ctx) {
-    throw new Error(RENDER_ERROR_MESSAGE);
-  }
-  return ctx;
-};
-
 const useHookIndex = () => {
   const ctx = useContext(HookIndexContext);
   if (!ctx) {
     throw new Error(RENDER_ERROR_MESSAGE);
   }
   return ctx.current++;
+};
+
+const useComponentState = () => {
+  const ctx = useContext(ComponentStateContext);
+  if (!ctx) {
+    throw new Error(RENDER_ERROR_MESSAGE);
+  }
+  return ctx;
 };
 
 const useThreadState = () => {
@@ -70,11 +76,11 @@ const useThreadState = () => {
 
 export const internal = {
   ActionContext,
-  ComponentIdContext,
   HookIndexContext,
+  ComponentStateContext,
   ThreadStateContext,
   useActionContext,
-  useComponentId,
   useHookIndex,
+  useComponentState,
   useThreadState,
 };
